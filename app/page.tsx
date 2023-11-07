@@ -6,52 +6,60 @@ const openai = new OpenAI({ apiKey: `${process.env.NEXT_PUBLIC_OPENAI_KEY}`, dan
 export default function Home() {
 
 
-  async function query(file) {
+  async function query(file: File) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-
+  
       reader.onload = async (event) => {
-        const data = event.target.result;
-        try {
-          const response = await fetch(
-            "https://api-inference.huggingface.co/models/distil-whisper/distil-large-v2",
-            {
-              headers: { Authorization: `Bearer ${process.env.NEXT_PUBLIC_HUGGING_FACE_API_KEY}` },
-              method: "POST",
-              body: data,
-            }
-          );
-          const result = await response.json();
-          resolve(result);
-        } catch (error) {
-          reject(error);
-           alert(`Error while sending the file:${error}`);
+        if (event.target) { // Check if event.target is not null
+          const data = event.target.result;
+          try {
+            const response = await fetch(
+              "https://api-inference.huggingface.co/models/distil-whisper/distil-large-v2",
+              {
+                headers: { Authorization: `Bearer ${process.env.NEXT_PUBLIC_HUGGING_FACE_API_KEY}` },
+                method: "POST",
+                body: data,
+              }
+            );
+            const result = await response.json();
+            resolve(result);
+          } catch (error) {
+            reject(error);
+            alert(`Error while sending the file: ${error}`);
+          }
         }
       };
-
+  
       reader.readAsArrayBuffer(file);
     });
   }
+  
 
   const create = async () => {
     const inputElement = document.getElementById('fileupload');
-
-    if (inputElement instanceof HTMLInputElement && inputElement.files.length > 0) {
-      const selectedFile = inputElement.files[0];
-      query(selectedFile)
-        .then(async (response) => {
-          const value = await JSON.stringify(response);
-
-          const jsonObject = await JSON.parse(value);
-          conversion(jsonObject.text);
-        })
-        .catch((error) => {
-          alert(`Error while sending the file:${error}`);
-        });
+  
+    if (inputElement instanceof HTMLInputElement) {
+      const files = inputElement.files;
+      if (files && files.length > 0) {
+        const selectedFile = files[0];
+        query(selectedFile)
+          .then(async (response) => {
+            const value = await JSON.stringify(response);
+            const jsonObject = await JSON.parse(value);
+            conversion(jsonObject.text);
+          })
+          .catch((error) => {
+            alert(`Error while sending the file: ${error}`);
+          });
+      } else {
+        console.error("No file selected.");
+      }
     } else {
-      console.error("No file selected or element with ID 'fileupload' not found.");
+      console.error("Element with ID 'fileupload' not found or not an input element.");
     }
   }
+  
 
   const conversion = async (value: object) => {
     const completion = await openai.chat.completions.create({
@@ -67,29 +75,38 @@ export default function Home() {
 
   const download = async () => {
     const paragraph = document.getElementById('output_area');
-    const downloadButton = document.getElementById('downloadButton');
-    const textContent = paragraph.textContent;
-
-    // Create a Blob (Binary Large Object) from the text content
-    const blob = new Blob([textContent], { type: 'text/plain' });
-
-    // Create a temporary URL for the Blob
-    const url = URL.createObjectURL(blob);
-
-    // Create an anchor element for downloading
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'text-content.txt'; // Specify the file name
-    a.style.display = 'none';
-
-    // Append the anchor element to the document and trigger a click event
-    document.body.appendChild(a);
-    a.click();
-
-    // Remove the anchor element
-    document.body.removeChild(a);
-
+  
+    if (paragraph) {
+      const textContent = paragraph.textContent;
+  
+      if (textContent !== null) {
+        // Create a Blob (Binary Large Object) from the text content
+        const blob = new Blob([textContent], { type: 'text/plain' });
+  
+        // Create a temporary URL for the Blob
+        const url = URL.createObjectURL(blob);
+  
+        // Create an anchor element for downloading
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'text-content.txt'; // Specify the file name
+        a.style.display = 'none';
+  
+        // Append the anchor element to the document and trigger a click event
+        document.body.appendChild(a);
+        a.click();
+  
+        // Remove the anchor element
+        document.body.removeChild(a);
+      } else {
+        console.error("textContent is null.");
+      }
+    } else {
+      console.error("Element with ID 'output_area' not found.");
+    }
   }
+  
+  
 
   return (
     <main className="z-10 h-screen w-screen p-8 bg-[#f4f6f7]">
